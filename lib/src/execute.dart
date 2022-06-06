@@ -85,9 +85,24 @@ int _execute(
 
   switch (definition.execution) {
     case 'once':
-      final script = definition.scripts.join(' && ');
-      // return executor2(
-      //     [script, extra].map((x) => x.trim()).join(' ').split(' '),);
+      final scriptLines = <String>[];
+      for (final script in definition.scripts) {
+        final sub = subcommand(script);
+        if (sub['command'].isNotEmpty) {
+          scriptLines.add(
+            getScript(
+              definitions,
+              sub['command'],
+              extra: sub['extra'],
+            ),
+          );
+        } else {
+          // replace all \$ with $ but are not subcommands
+          final unparsed = script.replaceAll('\\\$', '\$');
+          scriptLines.add(unparsed);
+        }
+      }
+      final script = scriptLines.join(' && ');
       return executor3([script, extra].map((x) => x.trim()).join(' '));
       break;
     case 'multiple':
@@ -111,6 +126,51 @@ int _execute(
       }
       return exitCode;
       break;
+    default:
+      throw 'Incorrect execution type ${definition.execution}.';
+      break;
+  }
+}
+
+String getScript(
+  Map definitions,
+  String arg, {
+  String extra = '',
+}) {
+  final searchResult = search(definitions, arg);
+
+  /// for incomplete calls for nested scripts
+  if (searchResult is YamlMap && !searchResult.value.containsKey('(scripts)')) {
+    throw DerryError(
+      type: ErrorType.snf,
+      body: {
+        'script': arg,
+        'definitions': makeKeys(definitions),
+      },
+    );
+  }
+
+  final definition = parseDefinition(searchResult);
+
+  switch (definition.execution) {
+    case 'once':
+    case 'multiple':
+      var scriptLines = <String>[];
+      for (final script in definition.scripts) {
+        final sub = subcommand(script);
+        if (sub['command'].isNotEmpty) {
+          scriptLines.add(getScript(
+            definitions,
+            sub['command'],
+            extra: sub['extra'],
+          ));
+        } else {
+          // replace all \$ with $ but are not subcommands
+          final unparsed = script.replaceAll('\\\$', '\$');
+          scriptLines.add('$unparsed $extra');
+        }
+      }
+      return scriptLines.join(' && ');
     default:
       throw 'Incorrect execution type ${definition.execution}.';
       break;
