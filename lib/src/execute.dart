@@ -18,43 +18,59 @@ int execute(
   String extra = '',
   String infoLine,
 }) {
-  var hasPre = false, hasPost = false;
+  final searchResult = search(definitions, arg);
 
-  try {
-    search(definitions, 'pre$arg');
-    hasPre = true;
-  } on DerryError catch (_) {
-    // don't mind
-  }
-
-  try {
-    search(definitions, 'post$arg');
-    hasPost = true;
-  } on DerryError catch (_) {
-    // don't mind
-  }
-
-  if (hasPre) {
-    _execute(
-      definitions,
-      'pre$arg',
-      extra: extra,
-      infoLine: infoLine,
+  /// for incomplete calls for nested scripts
+  if (searchResult is YamlMap && !searchResult.value.containsKey('(scripts)')) {
+    throw DerryError(
+      type: ErrorType.snf,
+      body: {
+        'script': arg,
+        'definitions': makeKeys(definitions),
+      },
     );
   }
 
-  final output = _execute(
-    definitions,
-    arg,
-    extra: hasPre ? '' : extra,
-    infoLine: hasPre ? null : infoLine,
-  );
+  final definition = parseDefinition(searchResult);
 
-  if (hasPost) {
-    _execute(definitions, 'post$arg');
+  Console.init();
+  Console.setBold(true);
+  if (infoLine != null) stdout.writeln(infoLine);
+  Console.setBold(false);
+
+  List<String> executables = <String>[];
+
+  final bool once = definition.execution == 'once';
+
+  executables.addAll(getPreCommand(definitions, arg, once: once));
+
+  for (final script in definition.scripts) {
+    final sub = subcommand(script);
+    if (sub['command'].isNotEmpty) {
+      executables.addAll(getSubCommand(
+        definitions,
+        sub['command'],
+        extra: [sub['extra'], extra].map((x) => x.trim()).join(' '),
+        once: once,
+        throwOnError: true,
+      ));
+    } else {
+      // replace all \$ with $, they are not subcommands
+      final unparsed = script.replaceAll('\\\$', '\$');
+      executables.add('$unparsed $extra');
+    }
+  }
+  executables.addAll(getPostCommand(definitions, arg, once: once));
+  int exitCode = 0;
+  if (once) {
+    return executor3(executables.join(' && '));
+  } else {
+    for (final String executable in executables) {
+      exitCode = executor3(executable);
+    }
   }
 
-  return output;
+  return exitCode;
 }
 
 int _execute(
@@ -89,13 +105,13 @@ int _execute(
       for (final script in definition.scripts) {
         final sub = subcommand(script);
         if (sub['command'].isNotEmpty) {
-          scriptLines.add(
-            getScript(
-              definitions,
-              sub['command'],
-              extra: sub['extra'],
-            ),
-          );
+          // scriptLines.add(
+          //   getSubCommand(
+          //     definitions,
+          //     sub['command'],
+          //     extra: sub['extra'],
+          //   ),
+          // );
         } else {
           // replace all \$ with $ but are not subcommands
           final unparsed = script.replaceAll('\\\$', '\$');
@@ -132,10 +148,92 @@ int _execute(
   }
 }
 
-String getScript(
+List<String> getSubCommand(
   Map definitions,
   String arg, {
   String extra = '',
+  bool once = false,
+  bool throwOnError = false,
+}) {
+  try {
+    search(definitions, arg);
+
+    return _getSubCommand(
+      definitions,
+      arg,
+      once: once,
+      throwOnError: throwOnError,
+    );
+  } on DerryError catch (_) {
+    if (throwOnError) {
+      rethrow;
+    }
+  }
+
+  return [];
+}
+
+List<String> getPreCommand(
+  Map definitions,
+  String arg, {
+  bool once = false,
+}) {
+  return _getPrefixedCommand(definitions, arg);
+}
+
+List<String> getPostCommand(
+  Map definitions,
+  String arg, {
+  bool once = false,
+}) {
+  return _getPrefixedCommand(definitions, arg, prefix: 'post');
+}
+
+List<String> _getPrefixedCommand(
+  Map definitions,
+  String arg, {
+  String prefix = 'pre',
+  bool once = false,
+}) {
+  String name = '$prefix$arg';
+
+  try {
+    search(definitions, name);
+
+    return _getSubCommand(definitions, name, once: once);
+  } on DerryError catch (_) {
+    // ignore
+  }
+  if (name.contains(' ')) {
+    name = name.split(' ').first;
+    try {
+      search(definitions, name);
+
+      return _getSubCommand(definitions, name, once: once);
+    } on DerryError catch (_) {
+      // ignore
+    }
+  }
+  if (name.contains(':')) {
+    name = name.split(':').first;
+    try {
+      search(definitions, name);
+
+      return _getSubCommand(definitions, name, once: once);
+    } on DerryError catch (_) {
+      // ignore
+    }
+  }
+
+  return [];
+}
+
+List<String> _getSubCommand(
+  Map definitions,
+  String arg, {
+  String extra = '',
+  bool once = false,
+  bool throwOnError = false,
 }) {
   final searchResult = search(definitions, arg);
 
@@ -155,14 +253,17 @@ String getScript(
   switch (definition.execution) {
     case 'once':
     case 'multiple':
-      var scriptLines = <String>[];
+      final scriptLines = <String>[];
+      scriptLines.addAll(getPreCommand(definitions, arg, once: once));
       for (final script in definition.scripts) {
         final sub = subcommand(script);
         if (sub['command'].isNotEmpty) {
-          scriptLines.add(getScript(
+          scriptLines.addAll(getSubCommand(
             definitions,
             sub['command'],
             extra: sub['extra'],
+            once: once,
+            throwOnError: true,
           ));
         } else {
           // replace all \$ with $ but are not subcommands
@@ -170,7 +271,12 @@ String getScript(
           scriptLines.add('$unparsed $extra');
         }
       }
-      return scriptLines.join(' && ');
+      scriptLines.addAll(getPostCommand(definitions, arg, once: once));
+      if (once || definition.execution == 'once') {
+        return [scriptLines.join(' && ')];
+      }
+
+      return scriptLines;
     default:
       throw 'Incorrect execution type ${definition.execution}.';
       break;
