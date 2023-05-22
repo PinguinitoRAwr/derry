@@ -22,7 +22,7 @@ class UpgradeCommand extends Command {
       const infoLine = '> derry@$packageVersion upgrade';
 
       execute(
-        {'upgrade': 'pub global activate derry'},
+        {'upgrade': 'dart pub global activate -s git https://github.com/PinguinitoRAwr/derry'},
         'upgrade',
         infoLine: infoLine,
       );
