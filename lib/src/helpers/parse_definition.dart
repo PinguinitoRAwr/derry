@@ -6,8 +6,8 @@ import 'package:yaml/yaml.dart';
 Definition parseDefinition(dynamic input) {
   if (input is YamlMap) {
     return Definition(
-      execution: input.value['(execution)'] as String,
-      description: input.value['(description)'] as String ?? '',
+      execution: input.value['(execution)'] as String?,
+      description: input.value['(description)'] as String? ?? '',
       scripts: toList(input.value['(scripts)']),
     );
   } else {

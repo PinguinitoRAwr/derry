@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -34,7 +35,7 @@ class ListCommand extends Command {
     final infoLine = '+ ${info.name}@${info.version}';
     final definitions = await loadDefinitions();
     final keys = makeKeys(definitions)..sort();
-    final showDescriptions = super.argResults['description'];
+    final showDescriptions = super.argResults!['description'];
 
     final baseMap = keys.asMap().entries.map(
           (entry) => MapEntry(
@@ -50,22 +51,26 @@ class ListCommand extends Command {
           (v) => v.value.length,
         )
         .toList()
-          ..sort();
+      ..sort();
     final longestValueLength = _valueLengths.last;
 
-    final subcommandMap = Map.fromEntries(baseMap.map(
-      (entry) => MapEntry(
-        entry.key,
-        entry.value.scripts.where((s) => s.startsWith('\$')).toList(),
+    final subcommandMap = Map.fromEntries(
+      baseMap.map(
+        (entry) => MapEntry(
+          entry.key,
+          entry.value.scripts!.where((s) => s.startsWith('\$')).toList(),
+        ),
       ),
-    ));
+    );
 
-    final descriptionMap = Map.fromEntries(baseMap.map(
-      (entry) => MapEntry(
-        entry.key,
-        entry.value.description,
+    final descriptionMap = Map.fromEntries(
+      baseMap.map(
+        (entry) => MapEntry(
+          entry.key,
+          entry.value.description,
+        ),
       ),
-    ));
+    );
 
     stdout.writeln(infoLine);
     stdout.writeln('│');
@@ -73,10 +78,10 @@ class ListCommand extends Command {
     for (final entry in keys.asMap().entries) {
       final i = entry.key;
       final value = entry.value;
-      final subcommands = subcommandMap[i];
+      final subcommands = subcommandMap[i]!;
 
       final description = descriptionMap[i];
-      final desc = showDescriptions as bool && description.isNotEmpty
+      final desc = showDescriptions as bool && description!.isNotEmpty
           ? format(
               '{color.gray}'
               '${''.padLeft(longestValueLength + 4 - value.length)} - '

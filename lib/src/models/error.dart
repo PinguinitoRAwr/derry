@@ -8,14 +8,14 @@ class DerryError extends Equatable {
   final ErrorType type;
 
   /// Body message of the error.
-  final Map<String, dynamic> body;
+  final Map<String, dynamic>? body;
 
   /// Constructs a constant [DerryError] instance.
   const DerryError({
-    this.type,
+    required this.type,
     this.body,
   });
 
   @override
-  List<Object> get props => [type, body];
+  List<Object?> get props => [type, body];
 }

@@ -16,7 +16,7 @@ int execute(
   Map definitions,
   String arg, {
   String extra = '',
-  String infoLine,
+  String? infoLine,
 }) {
   final searchResult = search(definitions, arg);
 
@@ -44,13 +44,13 @@ int execute(
 
   executables.addAll(getPreCommand(definitions, arg, once: once));
 
-  for (final script in definition.scripts) {
+  for (final script in definition.scripts!) {
     final sub = subcommand(script);
-    if (sub['command'].isNotEmpty) {
+    if (sub['command']!.isNotEmpty) {
       executables.addAll(getSubCommand(
         definitions,
-        sub['command'],
-        extra: [sub['extra'], extra].map((x) => x.trim()).join(' '),
+        sub['command']!,
+        extra: [sub['extra'], extra].map((x) => x!.trim()).join(' '),
         once: once,
         throwOnError: true,
       ));
@@ -76,7 +76,7 @@ int execute(
 List<String> getSubCommand(
   Map definitions,
   String arg, {
-  String extra = '',
+  String? extra = '',
   bool once = false,
   bool throwOnError = false,
 }) {
@@ -180,12 +180,12 @@ List<String> _getSubCommand(
     case 'multiple':
       final scriptLines = <String>[];
       scriptLines.addAll(getPreCommand(definitions, arg, once: once));
-      for (final script in definition.scripts) {
+      for (final script in definition.scripts!) {
         final sub = subcommand(script);
-        if (sub['command'].isNotEmpty) {
+        if (sub['command']!.isNotEmpty) {
           scriptLines.addAll(getSubCommand(
             definitions,
-            sub['command'],
+            sub['command']!,
             extra: sub['extra'],
             once: once,
             throwOnError: true,
@@ -204,6 +204,5 @@ List<String> _getSubCommand(
       return scriptLines;
     default:
       throw 'Incorrect execution type ${definition.execution}.';
-      break;
   }
 }

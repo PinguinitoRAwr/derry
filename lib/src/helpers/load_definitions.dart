@@ -4,8 +4,8 @@ import 'package:derry/models.dart';
 import 'package:yaml/yaml.dart';
 
 /// Loads scripts from `pubspec.yaml` content.
-Future<Map> loadDefinitions() async {
-  final pubspec = await readPubspec();
+Future<Map<String, dynamic>> loadDefinitions() async {
+  final YamlDocument pubspec = await readPubspec();
   final definitions = pubspec.contents.value['scripts'];
 
   if (definitions == null) {
@@ -13,12 +13,13 @@ Future<Map> loadDefinitions() async {
   }
 
   if (definitions is YamlMap) {
-    return definitions.value;
+    return definitions.value.cast<String, dynamic>();
   } else if (definitions is String) {
-    final fileScripts = await readYamlFile(definitions.toString());
+    final fileScripts = await readYamlFile(definitions);
 
     if (fileScripts.contents.value is YamlMap) {
-      return fileScripts.contents.value as Map;
+      return (fileScripts.contents.value as YamlMap).cast<String, dynamic>();
+      // return fileScripts.contents.value as Map<String, dynamic>;
     } else {
       throw const DerryError(type: ErrorType.cpd);
     }

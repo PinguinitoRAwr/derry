@@ -13,7 +13,7 @@ dynamic search(Map data, String key) {
     final k = entry.value;
 
     current.write('$k ');
-    if (d is Map && d.containsKey(k)) {
+    if (d.containsKey(k)) {
       if (i == keyPieces.length - 1) {
         return d[k];
       } else if (d[k] is Map) {
