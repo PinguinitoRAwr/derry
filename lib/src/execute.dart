@@ -12,12 +12,12 @@ import 'package:yaml/yaml.dart';
 /// an extra bit of command which will be passed down to the script,
 /// a `boolean` value to decide whether to print output
 /// or not, and a [String] to print before executing the script.
-int execute(
+Future<int> execute(
   Map definitions,
   String arg, {
   String extra = '',
   String? infoLine,
-}) {
+}) async {
   final searchResult = search(definitions, arg);
 
   /// for incomplete calls for nested scripts
@@ -66,7 +66,7 @@ int execute(
     return executor3(executables.join(' && '));
   } else {
     for (final String executable in executables) {
-      exitCode = executor3(executable);
+      exitCode = await executor3(executable);
     }
   }
 
